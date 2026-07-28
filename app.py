@@ -1,5 +1,5 @@
 import sqlite3
-from fastapi import FastAPI
+from fastapi import FastAPI,HTTPException
 
 app=FastAPI()
 
@@ -31,3 +31,30 @@ def init_db():
 @app.on_event("startup")
 def on_startup():
     init_db()
+
+def connect_database():
+    connection=sqlite3.connect("tasks.db")
+    connection.row_factory=sqlite3.Row
+    return connection
+
+@app.get("/tasks")
+def read_task():
+    connection=connect_database()
+    cursor=connection.cursor()
+    cursor.execute("SELECT * FROM tasks")
+    rows=cursor.fetchall()
+    connection.close()
+    return [dict(row) for row in rows]
+
+@app.get("/tasks/{task_id}")
+def read_one_task(task_id:int):
+    connection=connect_database()
+    cursor=connection.cursor()
+    cursor.execute("SELECT * FROM tasks WHERE id=?",(task_id,))
+    row=cursor.fetchone()
+    connection.close()
+
+    if row is None:
+        raise HTTPException(status_code=404,detail="Task not found")
+    
+    return dict(row)
